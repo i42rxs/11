@@ -1,0 +1,671 @@
+1. ХЕШ-ТАБЛИЦА
+Python
+class HashTable:
+    def __init__(self, size=10):
+        self.size = size
+        self.table = [[] for _ in range(size)]
+    
+    def _hash(self, key):
+        return hash(key) % self.size
+    
+    def insert(self, key, value):
+        index = self._hash(key)
+        for i, (k, v) in enumerate(self.table[index]):
+            if k == key:
+                self.table[index][i] = (key, value)
+                return
+        self.table[index].append((key, value))
+    
+    def get(self, key):
+        index = self._hash(key)
+        for k, v in self.table[index]:
+            if k == key:
+                return v
+        return None
+    
+    def delete(self, key):
+        index = self._hash(key)
+        for i, (k, v) in enumerate(self.table[index]):
+            if k == key:
+                del self.table[index][i]
+                return True
+        return False
+C++
+#include <vector>
+#include <list>
+#include <utility>
+
+class HashTable {
+private:
+    std::vector<std::list<std::pair<int, int>>> table;
+    int size;
+    
+    int hash(int key) {
+        return key % size;
+    }
+
+public:
+    HashTable(int s = 10) : size(s), table(s) {}
+    
+    void insert(int key, int value) {
+        int index = hash(key);
+        for (auto& pair : table[index]) {
+            if (pair.first == key) {
+                pair.second = value;
+                return;
+            }
+        }
+        table[index].push_back({key, value});
+    }
+    
+    int get(int key) {
+        int index = hash(key);
+        for (auto& pair : table[index]) {
+            if (pair.first == key) return pair.second;
+        }
+        return -1;
+    }
+    
+    void remove(int key) {
+        int index = hash(key);
+        table[index].remove_if([key](auto pair) { return pair.first == key; });
+    }
+};
+Java
+import java.util.*;
+
+public class HashTable {
+    private LinkedList<Entry>[] table;
+    private int size;
+    
+    private static class Entry {
+        int key, value;
+        Entry(int k, int v) { key = k; value = v; }
+    }
+    
+    public HashTable(int size) {
+        this.size = size;
+        table = new LinkedList[size];
+        for (int i = 0; i < size; i++) table[i] = new LinkedList<>();
+    }
+    
+    private int hash(int key) {
+        return key % size;
+    }
+    
+    public void put(int key, int value) {
+        int index = hash(key);
+        for (Entry entry : table[index]) {
+            if (entry.key == key) {
+                entry.value = value;
+                return;
+            }
+        }
+        table[index].add(new Entry(key, value));
+    }
+    
+    public Integer get(int key) {
+        int index = hash(key);
+        for (Entry entry : table[index]) {
+            if (entry.key == key) return entry.value;
+        }
+        return null;
+    }
+    
+    public void remove(int key) {
+        int index = hash(key);
+        table[index].removeIf(entry -> entry.key == key);
+    }
+}
+2. БИНОМИАЛЬНАЯ КУЧА
+class BinomialHeap:
+    class Node:
+        def __init__(self, key):
+            self.key, self.degree = key, 0
+            self.parent = self.child = self.sibling = None
+    
+    def __init__(self):
+        self.head = None
+    
+    def merge(self, h1, h2):
+        if not h1 or not h2: return h1 or h2
+        if h1.degree > h2.degree: h1, h2 = h2, h1
+        h1.sibling = self.merge(h1.sibling, h2)
+        return h1
+    
+    def union(self, h2):
+        self.head = self.merge(self.head, h2.head)
+        if not self.head: return
+        
+        prev, x, next = None, self.head, self.head.sibling
+        while next:
+            if x.degree != next.degree or (next.sibling and next.sibling.degree == x.degree):
+                prev, x = x, next
+            elif x.key <= next.key:
+                x.sibling = next.sibling
+                next.parent, next.sibling, x.child, x.degree = x, x.child, next, x.degree + 1
+            else:
+                if prev: prev.sibling = next
+                else: self.head = next
+                x.parent, x.sibling, next.child, next.degree = next, next.child, x, next.degree + 1
+                x = next
+            next = x.sibling
+    
+    def insert(self, key):
+        temp = BinomialHeap()
+        temp.head = self.Node(key)
+        self.union(temp)
+    
+    def get_min(self):
+        return min((x.key for x in self._nodes()), default=None)
+    
+    def extract_min(self):
+        if not self.head: return None
+        min_node = min(self._nodes(), key=lambda x: x.key)
+        
+        # Remove min node
+        nodes = list(self._nodes())
+        if nodes[0] == min_node:
+            self.head = min_node.sibling
+        else:
+            nodes[nodes.index(min_node)-1].sibling = min_node.sibling
+        
+        # Reverse children and union
+        child, rev = min_node.child, None
+        while child:
+            next, child.sibling, child.parent = child.sibling, rev, None
+            rev, child = child, next
+        
+        temp = BinomialHeap()
+        temp.head = rev
+        self.union(temp)
+        return min_node.key
+    
+    def _nodes(self):
+        node = self.head
+        while node:
+            yield node
+            node = node.sibling
+C++
+class BinomialHeap {
+    struct Node { 
+        int key, degree; 
+        Node *parent, *child, *sibling;
+        Node(int k) : key(k), degree(0), parent(nullptr), child(nullptr), sibling(nullptr) {}
+    };
+    
+    Node* head;
+    
+    Node* merge(Node* h1, Node* h2) {
+        if (!h1 || !h2) return h1 ? h1 : h2;
+        if (h1->degree > h2->degree) std::swap(h1, h2);
+        h1->sibling = merge(h1->sibling, h2);
+        return h1;
+    }
+    
+    void link(Node* y, Node* z) {
+        y->parent = z;
+        y->sibling = z->child;
+        z->child = y;
+        z->degree++;
+    }
+    
+public:
+    BinomialHeap() : head(nullptr) {}
+    
+    void insert(int key) {
+        BinomialHeap temp;
+        temp.head = new Node(key);
+        unionHeap(temp);
+    }
+    
+    void unionHeap(BinomialHeap& h2) {
+        head = merge(head, h2.head);
+        h2.head = nullptr;
+        if (!head) return;
+        
+        Node *prev = nullptr, *x = head, *next = x->sibling;
+        while (next) {
+            if (x->degree != next->degree || (next->sibling && next->sibling->degree == x->degree)) {
+                prev = x; x = next;
+            } else if (x->key <= next->key) {
+                x->sibling = next->sibling;
+                link(next, x);
+            } else {
+                if (prev) prev->sibling = next;
+                else head = next;
+                link(x, next);
+                x = next;
+            }
+            next = x->sibling;
+        }
+    }
+    
+    int extractMin() {
+        if (!head) return -1;
+        
+        // Find min node
+        Node *minNode = head, *minPrev = nullptr, *prev = nullptr, *curr = head;
+        while (curr) {
+            if (curr->key < minNode->key) minNode = curr, minPrev = prev;
+            prev = curr; curr = curr->sibling;
+        }
+        
+        // Remove min node
+        if (minPrev) minPrev->sibling = minNode->sibling;
+        else head = minNode->sibling;
+        
+        // Reverse children and union
+        Node *child = minNode->child, *rev = nullptr;
+        while (child) {
+            Node* next = child->sibling;
+            child->sibling = rev;
+            child->parent = nullptr;
+            rev = child;
+            child = next;
+        }
+        
+        BinomialHeap temp;
+        temp.head = rev;
+        unionHeap(temp);
+        
+        int minKey = minNode->key;
+        delete minNode;
+        return minKey;
+    }
+};
+Java
+public class BinomialHeap {
+    static class Node {
+        int key, degree;
+        Node parent, child, sibling;
+        Node(int k) { key = k; }
+    }
+    
+    private Node head;
+    
+    public void insert(int key) {
+        BinomialHeap temp = new BinomialHeap();
+        temp.head = new Node(key);
+        union(temp);
+    }
+    
+    private void union(BinomialHeap h2) {
+        head = merge(head, h2.head);
+        h2.head = null;
+        if (head == null) return;
+        
+        Node prev = null, x = head, next = x.sibling;
+        while (next != null) {
+            if (x.degree != next.degree || (next.sibling != null && next.sibling.degree == x.degree)) {
+                prev = x; x = next;
+            } else if (x.key <= next.key) {
+                x.sibling = next.sibling;
+                link(next, x);
+            } else {
+                if (prev == null) head = next;
+                else prev.sibling = next;
+                link(x, next);
+                x = next;
+            }
+            next = x.sibling;
+        }
+    }
+    
+    private Node merge(Node h1, Node h2) {
+        if (h1 == null) return h2;
+        if (h2 == null) return h1;
+        if (h1.degree > h2.degree) {
+            Node temp = h1; h1 = h2; h2 = temp;
+        }
+        h1.sibling = merge(h1.sibling, h2);
+        return h1;
+    }
+    
+    private void link(Node y, Node z) {
+        y.parent = z;
+        y.sibling = z.child;
+        z.child = y;
+        z.degree++;
+    }
+    
+    public Integer extractMin() {
+        if (head == null) return null;
+        
+        // Find min node
+        Node minNode = head, minPrev = null, prev = null, curr = head;
+        while (curr != null) {
+            if (curr.key < minNode.key) {
+                minNode = curr; minPrev = prev;
+            }
+            prev = curr; curr = curr.sibling;
+        }
+        
+        // Remove min node
+        if (minPrev != null) minPrev.sibling = minNode.sibling;
+        else head = minNode.sibling;
+        
+        // Reverse children and union
+        Node child = minNode.child, rev = null;
+        while (child != null) {
+            Node next = child.sibling;
+            child.sibling = rev;
+            child.parent = null;
+            rev = child;
+            child = next;
+        }
+        
+        BinomialHeap temp = new BinomialHeap();
+        temp.head = rev;
+        union(temp);
+        
+        return minNode.key;
+    }
+}
+КУЧА ФИБОНАЧЧИ
+Python
+class FibonacciHeap:
+    class Node:
+        def __init__(self, key):
+            self.key, self.degree, self.marked = key, 0, False
+            self.parent = self.child = None
+            self.left = self.right = self
+    
+    def __init__(self):
+        self.min_node, self.count = None, 0
+    
+    def insert(self, key):
+        node = self.Node(key)
+        if not self.min_node:
+            self.min_node = node
+        else:
+            self._add_to_root(node)
+            if key < self.min_node.key:
+                self.min_node = node
+        self.count += 1
+    
+    def extract_min(self):
+        if not self.min_node: return None
+        
+        min_node = self.min_node
+        if min_node.child:
+            for child in self._nodes(min_node.child):
+                self._add_to_root(child)
+                child.parent = None
+        
+        if min_node == min_node.right:
+            self.min_node = None
+        else:
+            self.min_node = min_node.right
+            min_node.left.right, min_node.right.left = min_node.right, min_node.left
+            self._consolidate()
+        
+        self.count -= 1
+        return min_node.key
+    
+    def _add_to_root(self, node):
+        self.min_node.left.right, node.left = node, self.min_node.left
+        node.right, self.min_node.left = self.min_node, node
+    
+    def _consolidate(self):
+        degree_map = {}
+        for node in self._nodes(self.min_node):
+            while node.degree in degree_map:
+                other = degree_map.pop(node.degree)
+                node = self._link(node, other)
+            degree_map[node.degree] = node
+        
+        self.min_node = None
+        for node in degree_map.values():
+            if not self.min_node or node.key < self.min_node.key:
+                self.min_node = node
+    
+    def _link(self, y, x):
+        if x.key > y.key: x, y = y, x
+        y.left.right, y.right.left = y.right, y.left
+        y.parent, y.left = x, y.right = x.child or y
+        if x.child: x.child.left.right = y
+        x.child, x.degree = y, x.degree + 1
+        y.marked = False
+        return x
+    
+    def _nodes(self, start):
+        node = start
+        while True:
+            yield node
+            node = node.right
+            if node == start: break
+C++
+#include <unordered_map>
+#include <vector>
+using namespace std;
+
+class FibonacciHeap {
+    struct Node {
+        int key, degree;
+        bool marked;
+        Node *parent, *child, *left, *right;
+        Node(int k) : key(k), degree(0), marked(false), 
+                     parent(nullptr), child(nullptr) {
+            left = right = this;
+        }
+    };
+    
+    Node* minNode;
+    int count;
+    
+    void addToRoot(Node* node) {
+        minNode->left->right = node;
+        node->left = minNode->left;
+        node->right = minNode;
+        minNode->left = node;
+    }
+    
+    void consolidate() {
+        unordered_map<int, Node*> degreeMap;
+        vector<Node*> nodes;
+        
+        Node* current = minNode;
+        do {
+            nodes.push_back(current);
+            current = current->right;
+        } while (current != minNode);
+        
+        for (Node* node : nodes) {
+            int deg = node->degree;
+            while (degreeMap.count(deg)) {
+                Node* other = degreeMap[deg];
+                degreeMap.erase(deg);
+                node = link(node, other);
+                deg = node->degree;
+            }
+            degreeMap[deg] = node;
+        }
+        
+        minNode = nullptr;
+        for (auto& pair : degreeMap) {
+            if (!minNode || pair.second->key < minNode->key) {
+                minNode = pair.second;
+            }
+        }
+    }
+    
+    Node* link(Node* y, Node* x) {
+        if (x->key > y->key) swap(x, y);
+        
+        y->left->right = y->right;
+        y->right->left = y->left;
+        
+        y->parent = x;
+        y->left = y->right = y;
+        if (x->child) {
+            y->left = x->child->left;
+            y->right = x->child;
+            x->child->left->right = y;
+            x->child->left = y;
+        }
+        x->child = y;
+        x->degree++;
+        y->marked = false;
+        return x;
+    }
+    
+public:
+    FibonacciHeap() : minNode(nullptr), count(0) {}
+    
+    Node* insert(int key) {
+        Node* node = new Node(key);
+        if (!minNode) {
+            minNode = node;
+        } else {
+            addToRoot(node);
+            if (key < minNode->key) minNode = node;
+        }
+        count++;
+        return node;
+    }
+    
+    int extractMin() {
+        if (!minNode) return -1;
+        
+        Node* min = minNode;
+        if (min->child) {
+            Node* child = min->child;
+            do {
+                Node* next = child->right;
+                addToRoot(child);
+                child->parent = nullptr;
+                child = next;
+            } while (child != min->child);
+        }
+        
+        if (min == min->right) {
+            minNode = nullptr;
+        } else {
+            minNode = min->right;
+            min->left->right = min->right;
+            min->right->left = min->left;
+            consolidate();
+        }
+        
+        count--;
+        int minKey = min->key;
+        delete min;
+        return minKey;
+    }
+};
+Java
+import java.util.*;
+
+public class FibonacciHeap {
+    static class Node {
+        int key, degree;
+        boolean marked;
+        Node parent, child, left, right;
+        
+        Node(int key) {
+            this.key = key;
+            this.left = this.right = this;
+        }
+    }
+    
+    private Node minNode;
+    private int count;
+    
+    public Node insert(int key) {
+        Node node = new Node(key);
+        if (minNode == null) {
+            minNode = node;
+        } else {
+            addToRoot(node);
+            if (key < minNode.key) minNode = node;
+        }
+        count++;
+        return node;
+    }
+    
+    public Integer extractMin() {
+        if (minNode == null) return null;
+        
+        Node min = minNode;
+        if (min.child != null) {
+            Node child = min.child;
+            do {
+                Node next = child.right;
+                addToRoot(child);
+                child.parent = null;
+                child = next;
+            } while (child != min.child);
+        }
+        
+        if (min == min.right) {
+            minNode = null;
+        } else {
+            minNode = min.right;
+            min.left.right = min.right;
+            min.right.left = min.left;
+            consolidate();
+        }
+        
+        count--;
+        return min.key;
+    }
+    
+    private void addToRoot(Node node) {
+        minNode.left.right = node;
+        node.left = minNode.left;
+        node.right = minNode;
+        minNode.left = node;
+    }
+    
+    private void consolidate() {
+        Map<Integer, Node> degreeMap = new HashMap<>();
+        List<Node> nodes = new ArrayList<>();
+        
+        Node current = minNode;
+        do {
+            nodes.add(current);
+            current = current.right;
+        } while (current != minNode);
+        
+        for (Node node : nodes) {
+            int deg = node.degree;
+            while (degreeMap.containsKey(deg)) {
+                Node other = degreeMap.remove(deg);
+                node = link(node, other);
+                deg = node.degree;
+            }
+            degreeMap.put(deg, node);
+        }
+        
+        minNode = null;
+        for (Node node : degreeMap.values()) {
+            if (minNode == null || node.key < minNode.key) {
+                minNode = node;
+            }
+        }
+    }
+    
+    private Node link(Node y, Node x) {
+        if (x.key > y.key) {
+            Node temp = x; x = y; y = temp;
+        }
+        
+        y.left.right = y.right;
+        y.right.left = y.left;
+        
+        y.parent = x;
+        if (x.child == null) {
+            x.child = y;
+            y.left = y.right = y;
+        } else {
+            y.left = x.child.left;
+            y.right = x.child;
+            x.child.left.right = y;
+            x.child.left = y;
+        }
+        x.degree++;
+        y.marked = false;
+        return x;
+    }
+}
